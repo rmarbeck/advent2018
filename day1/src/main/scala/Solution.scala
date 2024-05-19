@@ -1,5 +1,4 @@
 import scala.annotation.tailrec
-import scala.collection.mutable
 
 object Solution:
   def run(inputLines: Seq[String]): (String, String) =
@@ -17,16 +16,10 @@ object Solution:
 end Solution
 
 @tailrec
-def findTwice(toAdd: Vector[Int], currentFrequency: Int = 0, positiveFrequencies: mutable.BitSet = mutable.BitSet(), negativeFrequencies: mutable.BitSet = mutable.BitSet()): Int =
+def findTwice(toAdd: Vector[Int], currentFrequency: Int = 0, frequencies: NegativeSupportedBitSet = NegativeSupportedBitSet()): Int =
   val newFrequency = toAdd.head + currentFrequency
-  val foundTwice = newFrequency match
-    case value if value >= 0 => positiveFrequencies.contains(newFrequency)
-    case _ => negativeFrequencies.contains(- newFrequency)
-
-  foundTwice match
+  frequencies.contains(newFrequency) match
     case true => newFrequency
     case false =>
-      newFrequency match
-        case value if value >= 0 => positiveFrequencies.add(newFrequency)
-        case _ => negativeFrequencies.add(- newFrequency)
-      findTwice(toAdd.tail :+ toAdd.head, newFrequency, positiveFrequencies, negativeFrequencies)
+      frequencies.add(newFrequency)
+      findTwice(toAdd.tail :+ toAdd.head, newFrequency, frequencies)
