@@ -3,10 +3,10 @@ import scala.annotation.tailrec
 object Solution:
   def run(inputLines: Seq[String]): (String, String) =
 
-    val drifts = inputLines.map(_.toInt).toVector
+    val drifts = inputLines.map(_.toInt)
 
     val resultPart1 = drifts.sum
-    val resultPart2 = findTwice(drifts)
+    val resultPart2 = findTwice(drifts.toVector)
 
     val result1 = s"$resultPart1"
     val result2 = s"$resultPart2"
