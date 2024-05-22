@@ -6,9 +6,14 @@ object Solution:
 
     val input = inputLines.head
 
-    val synthesized = synthesize2(StringBuilder(input))
+    //val synthesized = synthesize2(StringBuilder(input))
 
-    val resultPart1 = synthesized.length
+    val stack = Stack()
+    inputLines.head.foreach(stack.add)
+
+    val resultPart1 = stack.size
+
+    val synthesized = stack.toString
 
     import collection.parallel.CollectionConverters.SetIsParallelizable
     val resultPart2 = synthesized.map(_.toLower).toSet.par.map:
@@ -20,9 +25,22 @@ object Solution:
     val result1 = s"$resultPart1"
     val result2 = s"$resultPart2"
 
+
     (s"${result1}", s"${result2}")
 
 end Solution
+
+class Stack:
+  override def toString: String = data.mkString
+  def size: Int = data.length
+  var data : Vector[Char] = Vector.empty
+  def add(char: Char): Stack =
+    if (data.lastOption.map(current => (current.toInt - char.toInt).abs == 32).getOrElse(false))
+      data = data.init
+    else
+      data = data :+ char
+    this
+
 
 @tailrec
 def synthesize(input: StringBuilder): String =
