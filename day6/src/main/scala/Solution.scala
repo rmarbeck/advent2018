@@ -42,17 +42,19 @@ case class Coordinates(row: Int, col: Int):
   def totalDistance(to: Seq[Coordinates]): Int =
     to.map(distanceTo).sum
 
-  private def distanceTo(other: Coordinates): Int =
-    (row - other.row).abs + (col - other.col).abs
+  private def distanceTo(other: Coordinates): Int = (row - other.row).abs + (col - other.col).abs
+
   def cardinalsAt(distance: Int): List[Coordinates] = List(-distance, distance).flatMap(drift => List(this.copy(row = row + drift), this.copy(col = col + drift)))
-  def at(distance: Int): List[Coordinates] =
-    (for
+
+  def at(distance: Int): List[Coordinates] = {
+    for
       r <- row - distance to row + distance
       c <- col - distance to col + distance
-      if ( (r - row).abs + (c - col).abs == distance)
+      if (r - row).abs + (c - col).abs == distance
     yield
       Coordinates(r, c)
-    ).toList
+  }.toList
+
   def isClosestTo(other: Coordinates, in: Seq[Coordinates]): Boolean =
     val minimal = distanceTo(other)
     !in.filterNot(_ == other).exists(curr => distanceTo(curr) <= minimal)
@@ -69,11 +71,11 @@ def calcAreaPart1(in: Seq[Coordinates], pseudoInfiniteDistance: Int): Int =
 
   in.par.filterNot(reachesInfiniteDistance).map(calcForOne).max
 
-def calcAreaPart2(pseudoMiddle: Coordinates, in: Seq[Coordinates], currentDistance: Int = 1, current: Int = 1, maxTotal: Int = 10000): Int =
+def calcAreaPart2(pseudoMiddle: Coordinates, in: Seq[Coordinates], currentDistance: Int = 1, counter: Int = 1, maxTotal: Int): Int =
   val next = pseudoMiddle.at(currentDistance)
   next.count(_.totalDistance(in) < maxTotal) match
-    case 0 => current
-    case value => calcAreaPart2(pseudoMiddle, in, currentDistance + 1, current + value, maxTotal)
+    case 0 => counter
+    case value => calcAreaPart2(pseudoMiddle, in, currentDistance + 1, counter + value, maxTotal)
 
 def size(values: Seq[Int]): Int =
   val sorted = values.sorted
