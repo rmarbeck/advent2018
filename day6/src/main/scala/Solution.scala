@@ -8,7 +8,9 @@ object Solution:
     val coordinatesSeq = inputLines.collect:
       case s"$row, $col" => Coordinates(row.toInt, col.toInt)
 
-    val resultPart1 = calcAreaPart1(coordinatesSeq)
+    val pseudoInfiniteDistance = Math.max(size(coordinatesSeq.map(_.row)), size(coordinatesSeq.map(_.col)))
+
+    val resultPart1 = calcAreaPart1(coordinatesSeq, pseudoInfiniteDistance)
 
     val maxTotal = coordinatesSeq.size match
       case 6 => 32
@@ -55,7 +57,7 @@ case class Coordinates(row: Int, col: Int):
     val minimal = distanceTo(other)
     !in.filterNot(_ == other).exists(curr => distanceTo(curr) <= minimal)
 
-def calcAreaPart1(in: Seq[Coordinates], pseudoInfiniteDistance: Int = 100): Int =
+def calcAreaPart1(in: Seq[Coordinates], pseudoInfiniteDistance: Int): Int =
   def reachesInfiniteDistance(coordinates: Coordinates): Boolean =
     coordinates.cardinalsAt(pseudoInfiniteDistance).exists(_.isClosestTo(coordinates, in))
   def calcForOne(coordinates: Coordinates): Int =
@@ -73,4 +75,6 @@ def calcAreaPart2(pseudoMiddle: Coordinates, in: Seq[Coordinates], currentDistan
     case 0 => current
     case value => calcAreaPart2(pseudoMiddle, in, currentDistance + 1, current + value, maxTotal)
 
-
+def size(values: Seq[Int]): Int =
+  val sorted = values.sorted
+  sorted.last - sorted.head
