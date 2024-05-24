@@ -42,6 +42,7 @@ case class Coordinates(row: Int, col: Int):
 
   private def distanceTo(other: Coordinates): Int =
     (row - other.row).abs + (col - other.col).abs
+  def cardinalsAt(distance: Int): List[Coordinates] = List(-distance, distance).flatMap(drift => List(this.copy(row = row + drift), this.copy(col = col + drift)))
   def at(distance: Int): List[Coordinates] =
     (for
       r <- row - distance to row + distance
@@ -56,7 +57,7 @@ case class Coordinates(row: Int, col: Int):
 
 def calcAreaPart1(in: Seq[Coordinates], pseudoInfiniteDistance: Int = 100): Int =
   def reachesInfiniteDistance(coordinates: Coordinates): Boolean =
-    coordinates.at(pseudoInfiniteDistance).exists(_.isClosestTo(coordinates, in))
+    coordinates.cardinalsAt(pseudoInfiniteDistance).exists(_.isClosestTo(coordinates, in))
   def calcForOne(coordinates: Coordinates): Int =
     def calcByDistance(distance: Int = 1, current: Int = 1): Int =
       coordinates.at(distance).count(_.isClosestTo(coordinates, in)) match
