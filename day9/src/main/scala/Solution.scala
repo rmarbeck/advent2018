@@ -1,6 +1,9 @@
 import scala.annotation.{tailrec, targetName}
 import scala.collection.mutable
 
+val winningMarbleModulo = 23
+val part2Factor = 100
+
 object Solution:
   def run(inputLines: Seq[String]): (String, String) =
 
@@ -11,12 +14,11 @@ object Solution:
     given NbPlayers = nbPlayers
     val resPart1 =
       given NbMarbles = lastMarble
-      play(Player(1), Deque(), Map())
+      play()
 
     val resPart2 =
-      given NbMarbles = lastMarble * 100
-      play(Player(1), Deque(), Map())
-
+      given NbMarbles = lastMarble * part2Factor
+      play()
 
     val result1 = s"$resPart1"
     val result2 = s"$resPart2"
@@ -26,88 +28,86 @@ object Solution:
 end Solution
 
 @tailrec
-def play(currentPlayer: Player, marbles: Game, scores: Map[Player, Score])(using NbPlayers, NbMarbles): Score =
-  //println(marbles)
-  marbles.getCurrent.value match
-    case value if value > summon[NbMarbles].max => scores.values.max
-    case value if value % 23 == 0 =>
-      def rotate7BackAndPop: Marble =
-        marbles.rotate7BackAndPop
+def play(currentPlayer: Player = Player.First, marbles: Game = Deque(), scores: Map[Player, Score] = Map())(using NbPlayers, NbMarbles): Score =
+  marbles.getCurrentMarble match
+    case marble if marble.value > summon[NbMarbles].max => scores.values.max
+    case marble if marble.value % winningMarbleModulo == 0 =>
       def addScore(marble1: Marble, marble2: Marble): Map[Player, Score] =
         scores.updatedWith(currentPlayer):
-          case Some(currentValue) => Some(currentValue + marble1.value + marble2.value)
-          case None => Some(marble1.value + marble2.value)
-      val removed = marbles.rotate7BackAndPop
-      val newScores = addScore(Marble(value), removed)
-      play(currentPlayer.next, marbles, newScores)
-    case value =>
-      marbles.add2Away()
-      play(currentPlayer.next, marbles, scores)
+          case Some(currentValue) => Some(marble1 + marble2 + currentValue)
+          case None => Some(marble1 + marble2)
+      val (newMarbles, removed) = marbles.rotate7BackAndPop()
+      val newScores = addScore(marble, removed)
+      play(currentPlayer.next, newMarbles, newScores)
+    case _ =>
+      val newMarbles = marbles.add2Away()
+      play(currentPlayer.next, newMarbles, scores)
 
 
 type Score = Long
 
 trait Game:
-  def rotate7BackAndPop: Marble
-  def add2Away(): Unit
-  def getCurrent: Marble
+  def rotate7BackAndPop(): (Game, Marble)
+  def add2Away(): Game
+  def getCurrentMarble: Marble
 
 class Deque() extends Game:
-  private val inner: mutable.ArrayDeque[Marble] = mutable.ArrayDeque[Marble](Marble(0))
-  private var currentMarble: Marble = Marble(0).next
+  private val inner: mutable.ArrayDeque[Marble] = mutable.ArrayDeque[Marble](Marble.initial)
+  private var currentMarble: Marble = Marble.firstPlayable
 
-  def getCurrent: Marble = currentMarble
+  def getCurrentMarble: Marble = currentMarble
 
-  @tailrec
   private def clockWise(times: Int): mutable.ArrayDeque[Marble] =
-    times match
-      case 0 => inner
-      case _ =>
-        inner.append(inner.removeHead())
-        clockWise(times - 1)
+    doItNTimes(times){
+      inner.append(inner.removeHead())
+    }
+
+  private def counterClockWise(times: Int): mutable.ArrayDeque[Marble] =
+    doItNTimes(times){
+      inner.prepend(inner.removeLast())
+    }
 
   @tailrec
-  private def counterClockWise(times: Int): mutable.ArrayDeque[Marble] =
+  private def doItNTimes(times: Int)(updater: => Unit): mutable.ArrayDeque[Marble] =
     times match
       case 0 => inner
       case _ =>
-        inner.prepend(inner.removeLast())
-        counterClockWise(times - 1)
+        updater
+        doItNTimes(times - 1)(updater)
 
-  override def rotate7BackAndPop: Marble =
+  override def rotate7BackAndPop(): (Game, Marble) =
     val extracted = counterClockWise(7).removeHead()
     currentMarble = currentMarble.next
-    extracted
+    (this, extracted)
 
-  override def add2Away(): Unit =
+  override def add2Away(): Game =
     clockWise(2).prepend(currentMarble)
     currentMarble = currentMarble.next
+    this
 
-  override def toString: String =
-    val zero = inner.indexOf(Marble(0))
-    val start = inner.drop(zero).map(_.value).mkString(" ")
-    val end = inner.take(zero).map(_.value).mkString(" ")
-    s"$start $end"
 
 case class Player(index: Int):
-  def next(using NbPlayers): Player =
-    if ((index + 1) > summon[NbPlayers].max)
-      Player(1)
-    else
-      Player(index + 1)
+  def next(using players: NbPlayers): Player =
+    index + 1 match
+      case value if value > players.max => Player(1)
+      case value => Player(value)
+
+object Player:
+  lazy val First: Player = new Player(1)
 
 case class Marble(value: Long):
   def next: Marble = Marble(value + 1)
+  @targetName("add")
+  def +(other: Marble): Long = value + other.value
+  @targetName("add")
+  def +(longValue: Int): Long = value + longValue
+
+object Marble:
+  lazy val initial: Marble = Marble(0)
+  lazy val firstPlayable: Marble = Marble(1)
 
 case class NbPlayers(max: Int)
 
 case class NbMarbles(max: Int):
   @targetName("multiply")
   def *(factor: Int): NbMarbles = NbMarbles(max * factor)
-
-case class IndexOfCurrentMarble(index: Int):
-  def nextCWIn(futureLength: Int): Int =
-    index + 2 match
-      case 2 if futureLength == 1 => 0
-      case value if value == futureLength => 1
-      case value => value
