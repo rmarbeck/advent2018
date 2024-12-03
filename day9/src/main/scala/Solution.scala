@@ -23,7 +23,7 @@ object Solution:
     val result1 = s"$resPart1"
     val result2 = s"$resPart2"
 
-    (s"${result1}", s"${result2}")
+    (s"$result1", s"$result2")
 
 end Solution
 
