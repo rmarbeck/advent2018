@@ -28,7 +28,7 @@ object Solution:
 end Solution
 
 @tailrec
-def play(currentPlayer: Player = Player.First, marbles: Game = Deque(), scores: Map[Player, Score] = Map())(using NbPlayers, NbMarbles): Score =
+def play(currentPlayer: Player = Player.First, marbles: Game = Deque.init(), scores: Map[Player, Score] = Map())(using NbPlayers, NbMarbles): Score =
   marbles.getCurrentMarble match
     case marble if marble.value > summon[NbMarbles].max => scores.values.max
     case marble if marble.value % winningMarbleModulo == 0 =>
@@ -51,10 +51,7 @@ trait Game:
   def add2Away(): Game
   def getCurrentMarble: Marble
 
-class Deque() extends Game:
-  private val inner: mutable.ArrayDeque[Marble] = mutable.ArrayDeque[Marble](Marble.initial)
-  private var currentMarble: Marble = Marble.firstPlayable
-
+case class Deque private (inner: mutable.ArrayDeque[Marble], currentMarble: Marble) extends Game:
   def getCurrentMarble: Marble = currentMarble
 
   private def clockWise(times: Int): mutable.ArrayDeque[Marble] =
@@ -77,14 +74,14 @@ class Deque() extends Game:
 
   override def rotate7BackAndPop(): (Game, Marble) =
     val extracted = counterClockWise(7).removeHead()
-    currentMarble = currentMarble.next
-    (this, extracted)
+    (Deque(inner, currentMarble.next), extracted)
 
   override def add2Away(): Game =
     clockWise(2).prepend(currentMarble)
-    currentMarble = currentMarble.next
-    this
+    Deque(inner, currentMarble.next)
 
+object Deque:
+  def init(): Deque = new Deque(mutable.ArrayDeque[Marble](Marble.initial), Marble.firstPlayable)
 
 case class Player(index: Int):
   def next(using players: NbPlayers): Player =
