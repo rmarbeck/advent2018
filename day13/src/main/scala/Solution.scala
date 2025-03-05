@@ -1,5 +1,4 @@
 import Tile.*
-import Direction.*
 import CrossStrategy.*
 
 import scala.annotation.{tailrec, targetName}
@@ -11,71 +10,76 @@ object Solution:
     given Track = Track.from(inputLines)
     val carts = Carts.from(inputLines)
 
-    val List(result1, result2) = runCarts(carts, None).map(_.asResult)
+    val List(result1, result2) = runCarts(Carts.empty, carts).map(_.asResult)
 
     (s"$result1", s"$result2")
 
-
 @tailrec
-def runCarts(carts: Carts, firstCrash: Option[Position])(using Track): List[Position] =
-  val resultingCarts =
-    carts.sortedCarts.toList.map:
-      summon[Track].next
-    .groupBy(_.position)
-
-  val (crashing, notCrashing) = resultingCarts.partition(_._2.size >= 2)
-  crashing.size match
-    case 0 => runCarts(Carts.from(notCrashing.values.toList.flatten), firstCrash)
-    case 1 =>
-      println(s"Crash at ${crashing.keys}, remaining ${notCrashing.size}")
-      notCrashing.size match
-        case 0 => List(crashing.keys.head, Position(0, 0))
-        case 1 => List(firstCrash.get, notCrashing.keys.head)
-        case _ =>
-          val nextFirstCrash = firstCrash.orElse(crashing.keys.headOption)
-          runCarts(Carts.from(notCrashing.values.toList.flatten), firstCrash)
-    case _ =>
-      throw Exception("Not Supported")
+def runCarts(toMove: Carts, alreadyMoved: Carts, firstCrash: Option[Position] = None)(using Track): List[Position] =
+  if (toMove.isEmpty)
+      runCarts(alreadyMoved, alreadyMoved.tail, firstCrash)
+  else
+    val currentCart = toMove.head
+    val nextCart = summon[Track].next(currentCart)
+    alreadyMoved - currentCart.position + nextCart match
+      case Right(newMoved) => runCarts(toMove.tail, newMoved, firstCrash)
+      case Left(crash) =>
+        crash.remainingCarts.size match
+          case 0 | 1 => List(firstCrash.get, crash.remainingCarts.head.position)
+          case _ =>
+            val nextFirstCrash = firstCrash.orElse(Some(crash.position))
+            runCarts(toMove.tail - crash.position, crash.remainingCarts, nextFirstCrash)
 
 
-case class Carts(sortedCarts: TreeSet[Cart]):
-  def add(cart: Cart): Carts = Carts(sortedCarts + cart)
-  def remove(cart: Cart): Carts = Carts(sortedCarts.filterNot(_ == cart))
+case class Crash(position: Position, remainingCarts: Carts)
+
+class Carts(private val sortedCarts: TreeSet[Cart]):
+  export sortedCarts.{size, head, isEmpty}
+  def tail: Carts = Carts(sortedCarts.tail)
+  @targetName("remove")
+  def -(position: Position): Carts = Carts(sortedCarts.filterNot(_.position == position))
+  @targetName("add")
+  def +(cart: Cart): Either[Crash, Carts] =
+    if (sortedCarts.toList.map(_.position).contains(cart.position))
+      Left(Crash(cart.position, this - cart.position))
+    else
+      Right(Carts(sortedCarts + cart))
+
 
 object Carts:
   def from(rawInput: Seq[String]): Carts =
     val foundCarts = rawInput.zipWithIndex.flatMap:
       (line, y) =>
         line.zipWithIndex.collect:
-          case ('>', x) => Cart(Position(x, y), Right)
-          case ('<', x) => Cart(Position(x, y), Left)
-          case ('^', x) => Cart(Position(x, y), Up)
-          case ('v', x) => Cart(Position(x, y), Down)
+          case ('>', x) => Cart(Position(x, y), Direction.Right)
+          case ('<', x) => Cart(Position(x, y), Direction.Left)
+          case ('^', x) => Cart(Position(x, y), Direction.Up)
+          case ('v', x) => Cart(Position(x, y), Direction.Down)
 
     Carts(TreeSet(foundCarts: _*))
 
-  def from(cartsUnSorted: List[Cart]): Carts = new Carts(TreeSet(cartsUnSorted: _*))
+  def from(cartsUnSorted: List[Cart]): Carts = new Carts(TreeSet.from(cartsUnSorted))
 
   def empty: Carts = Carts(TreeSet())
 
 case class Position(x: Int, y: Int):
   def step(direction: Direction): Position =
     direction match
-      case Up => this.copy(y = y - 1)
-      case Down => this.copy(y = y + 1)
-      case Left => this.copy(x = x - 1)
-      case Right => this.copy(x = x + 1)
+      case Direction.Up => this.copy(y = y - 1)
+      case Direction.Down => this.copy(y = y + 1)
+      case Direction.Left => this.copy(x = x - 1)
+      case Direction.Right => this.copy(x = x + 1)
 
   def asResult: String = s"$x,$y"
 
 case class Cart(position: Position, direction: Direction, strategy: CrossStrategy = CrossStrategy.default):
-  lazy val straightForward: Cart = this.copy(position = position.step(direction))
-  lazy val topRightCorner: Cart = turn(Up, Left)
-  lazy val topLeftCorner: Cart = turn(Up, Right)
-  lazy val bottomRightCorner: Cart = turn(Down, Left)
-  lazy val bottomLeftCorner: Cart = turn(Down, Right)
+  def straightForward: Cart = Cart(position.step(direction), direction, strategy)
+  def topRightCorner: Cart = turn(Direction.Up, Direction.Left)
+  def topLeftCorner: Cart = turn(Direction.Up, Direction.Right)
+  def bottomRightCorner: Cart = turn(Direction.Down, Direction.Left)
+  def bottomLeftCorner: Cart = turn(Direction.Down, Direction.Right)
 
-  lazy val cross: Cart =
+  def cross: Cart =
     strategy match
       case TurnLeft => Cart(position.step(direction), direction.turnLeft, strategy.next)
       case GoStraight => Cart(position.step(direction), direction, strategy.next)
